@@ -7,12 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class DistanciaClient {
+public class DistanciaRestClient {
 
 	private String distanciaServiceUrl;
 	private RestTemplate restTemplate;
 
-	public DistanciaClient(RestTemplate restTemplate,
+	public DistanciaRestClient(RestTemplate restTemplate,
 			@Value("${configuracao.distancia.service.url}") String distanciaServiceUrl) {
 		this.distanciaServiceUrl = distanciaServiceUrl;
 		this.restTemplate = restTemplate;

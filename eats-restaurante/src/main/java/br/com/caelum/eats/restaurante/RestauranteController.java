@@ -3,6 +3,7 @@ package br.com.caelum.eats.restaurante;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +21,8 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 class RestauranteController {
 
+	@Autowired
+	private DistanciaRestClient distanciaClient;
 	private RestauranteRepository restauranteRepo;
 	private CardapioRepository cardapioRepo;
 
@@ -55,9 +58,22 @@ class RestauranteController {
 		Restaurante doBD = restauranteRepo.getOne(restaurante.getId());
 		restaurante.setUser(doBD.getUser());
 		restaurante.setAprovado(doBD.getAprovado());
+		
+		if(doBD.getAprovado() && (cepDiferente(restaurante, doBD)) || tipoDeCozinhaDiferente(restaurante, doBD)) {
+			distanciaClient.restauranteAtualizado(restaurante);
+		}
+		
 		return restauranteRepo.save(restaurante);
 	}
 
+	private boolean cepDiferente(Restaurante restaurante, Restaurante doDb) {
+		return !doDb.getCep().equals(restaurante.getCep());
+	}
+	
+	private boolean tipoDeCozinhaDiferente(Restaurante restaurante, Restaurante doDB) {
+		return !doDB.getTipoDeCozinha().getId().equals(restaurante.getTipoDeCozinha().getId());
+	}
+	
 	@GetMapping("/admin/restaurantes/em-aprovacao")
 	public List<RestauranteDto> emAprovacao() {
 		return restauranteRepo.findAllByAprovado(false).stream().map(RestauranteDto::new)
