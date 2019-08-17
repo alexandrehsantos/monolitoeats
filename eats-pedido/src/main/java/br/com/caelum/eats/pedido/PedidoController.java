@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.caelum.eats.AmqpPedidoConfig.AtualizacaoPedidoSource;
 import br.com.caelum.eats.exception.ResourceNotFoundException;
 import lombok.AllArgsConstructor;
 
@@ -21,14 +22,14 @@ import lombok.AllArgsConstructor;
 class PedidoController {
 
 	private PedidoRepository repo;
-	private SimpMessagingTemplate websocket;
+	// TODO REMOVIDO PARA O API GATWAY
+//	private SimpMessagingTemplate websocket;
+	private AtualizacaoPedidoSource AtualizacaoPedidoSource;
 
 	@GetMapping("/pedidos")
 	public List<PedidoDto> lista() {
-		return repo.findAll().stream()
-				.map(pedido -> new PedidoDto(pedido)).collect(Collectors.toList());
+		return repo.findAll().stream().map(pedido -> new PedidoDto(pedido)).collect(Collectors.toList());
 	}
-
 
 	@GetMapping("/pedidos/{id}")
 	public PedidoDto porId(@PathVariable("id") Long id) {
@@ -49,20 +50,25 @@ class PedidoController {
 	@PutMapping("/pedidos/{id}/status")
 	public PedidoDto atualizaStatus(@RequestBody Pedido pedido) {
 		repo.atualizaStatus(pedido.getStatus(), pedido);
-		websocket.convertAndSend("/pedidos/"+pedido.getId()+"/status", pedido);
+		// TODO REMOVIDO PARA O API GATWAY
+//		websocket.convertAndSend("/pedidos/" + pedido.getId() + "/status", pedido);
+
+		PedidoDto pedidoDto = new PedidoDto(pedido);
+		AtualizacaoPedidoSource.pedidoComStatusAtualizado().send(MessageBuilder.withPayload(pedidoDto).build());
 		return new PedidoDto(pedido);
 	}
 
 	@GetMapping("/parceiros/restaurantes/{restauranteId}/pedidos/pendentes")
 	public List<PedidoDto> pendentes(@PathVariable("restauranteId") Long restauranteId) {
-		return repo.doRestauranteSemOsStatus(restauranteId, Arrays.asList(Pedido.Status.REALIZADO, Pedido.Status.ENTREGUE)).stream()
-				.map(pedido -> new PedidoDto(pedido)).collect(Collectors.toList());
+		return repo
+				.doRestauranteSemOsStatus(restauranteId, Arrays.asList(Pedido.Status.REALIZADO, Pedido.Status.ENTREGUE))
+				.stream().map(pedido -> new PedidoDto(pedido)).collect(Collectors.toList());
 	}
 
 	@PutMapping("/pedidos/{id}/pago")
 	public void pago(@PathVariable("id") Long id) {
 		Pedido pedido = repo.porIdComItens(id);
-		if(pedido == null) {
+		if (pedido == null) {
 			throw new ResourceNotFoundException();
 		}
 		pedido.setStatus(Pedido.Status.PAGO);
